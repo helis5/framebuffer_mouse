@@ -39,7 +39,7 @@ static inline unsigned int get_pixel(char *fb, struct fb_var_screeninfo *vi,
     return *((unsigned int *)(fb + loc));
 }
 
-// Курсор: 8x12. 'X' = чёрный, '.' = белый, ' ' = прозрачно
+// Cursor: 8x12. 'X' = black, '.' = white, ' ' = transparent
 #define CUR_W 8
 #define CUR_H 12
 static const char *cursor_bitmap[CUR_H] = {
@@ -70,7 +70,7 @@ static void erase_cursor(char *fb, struct fb_var_screeninfo *vi) {
 }
 
 static void paint_cursor(char *fb, struct fb_var_screeninfo *vi, int cx, int cy) {
-    // Сохраняем пиксели, которые перекроем
+    // Save pixels we are about to overwrite
     for (int j = 0; j < CUR_H; j++)
         for (int i = 0; i < CUR_W; i++)
             saved[j * CUR_W + i] = get_pixel(fb, vi, cx + i, cy + j);
@@ -107,8 +107,8 @@ int main(void) {
     char *fb = mmap(NULL, screensize, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
     if (fb == MAP_FAILED) { perror("mmap"); return 1; }
 
-    // Блокирующее открытие: ядро само разбудит нас, как только придёт пакет.
-    // Никакого O_NONBLOCK и usleep — курсор обновляется ровно в темпе мыши.
+    // Blocking read: the kernel wakes us up as soon as a packet arrives.
+    // No O_NONBLOCK, no usleep — cursor updates at the mouse's own rate.
     int mfd = open("/dev/input/mice", O_RDONLY);
     if (mfd < 0) { perror("/dev/input/mice"); return 1; }
 
@@ -116,14 +116,14 @@ int main(void) {
     int cy = vinfo.yres / 2;
     paint_cursor(fb, &vinfo, cx, cy);
 
-    printf("Курсор в %dx%d. Двигай мышь. Ctrl+C — выход.\n",
+    printf("Cursor at %dx%d. Move the mouse. Ctrl+C to quit.\n",
            vinfo.xres, vinfo.yres);
     fflush(stdout);
 
-    // /dev/input/mice: пакеты по 3 байта.
-    //   data[0] — кнопки
+    // /dev/input/mice: 3-byte packets.
+    //   data[0] — buttons
     //   data[1] — dx (signed)
-    //   data[2] — dy (signed), но с обратным знаком относительно экрана
+    //   data[2] — dy (signed), inverted relative to screen coordinates
     unsigned char data[3];
     while (g_running) {
         ssize_t n = read(mfd, data, 3);
@@ -135,15 +135,14 @@ int main(void) {
         if (n != 3) break;
 
         cx += (int)(signed char)data[1];
-        cy -= (int)(signed char)data[2];
+        cy -= (int)(signed char)data[2];  // invert Y
 
-        // Клэмп
+        // Clamp to screen bounds
         if (cx < 0) cx = 0;
         if (cy < 0) cy = 0;
         if (cx > (int)vinfo.xres - CUR_W) cx = vinfo.xres - CUR_W;
         if (cy > (int)vinfo.yres - CUR_H) cy = vinfo.yres - CUR_H;
 
-        // Перерисовываем на каждое событие
         erase_cursor(fb, &vinfo);
         paint_cursor(fb, &vinfo, cx, cy);
     }
