@@ -1,4 +1,4 @@
-# Framebuffer Mouse
+# Framebuffer Mouse (linux)
 
 A minimal useless C program that draws a mouse cursor directly into `/dev/fb0` and reads mouse movement from `/dev/input/mice` — no X11, no Wayland, no graphical stack.
 
