@@ -21,3 +21,6 @@ A minimal useless C program that draws a mouse cursor directly into `/dev/fb0` a
 ```bash
 gcc fb_mouse.c -o fb_mouse
 sudo ./fb_mouse
+```
+
+<img width="4624" height="2604" alt="IMG_20261011_032223" src="https://github.com/user-attachments/assets/45634879-7c06-4ecf-bc02-5ea50a5d6260" />
